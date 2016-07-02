@@ -114,4 +114,4 @@ This module uses FileReader API, so latest browser is required.
 
 
 Please check the Client side module too. Link: [socket.io-file-client
-](https://github.com/rico345100/socket.io-file)
+](https://github.com/rico345100/socket.io-file-client)
