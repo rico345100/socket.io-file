@@ -3,6 +3,9 @@
 Socket.io-file is module for uploading file via Socket.io.
 
 ## Example
+
+You can found full source code here: [Example Page](https://github.com/rico345100/socket.io-file-example)
+
 ### Server side
 
 ```javascript
