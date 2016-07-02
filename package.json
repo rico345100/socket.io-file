@@ -1,0 +1,11 @@
+{
+  "name": "socket.io-file",
+  "version": "1.0.0",
+  "description": "File uploader module for Socket.io",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": ".modernator",
+  "license": "MIT"
+}
