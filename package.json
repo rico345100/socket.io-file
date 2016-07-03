@@ -1,6 +1,6 @@
 {
   "name": "socket.io-file",
-  "version": "1.0.3",
+  "version": "1.0.32",
   "description": "File uploader module for Socket.io",
   "main": "index.js",
   "scripts": {

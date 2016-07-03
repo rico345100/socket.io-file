@@ -120,11 +120,13 @@ function SocketIOFile(socket, options) {
 
                     this.emit('stream', streamObj);
                     this.emit('complete', {
+                        name: fileName,
                         path: files[fileName].path
                     });
 
                     socket.emit('socket.io-file::stream', streamObj);
                     socket.emit('socket.io-file::complete', {
+                        name: fileName,
                         path: files[fileName].path
                     });
 
@@ -149,7 +151,7 @@ function SocketIOFile(socket, options) {
                     socket.emit('socket.io-file::stream', streamObj);
                 });
             }
-            else{
+            else {
                 var stream = files[fileName].uploaded / CHUNK_SIZE;
                 
                 const streamObj = { 

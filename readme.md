@@ -109,6 +109,7 @@ This event fires when client sending the data from server, and server receives i
 ### Event.complete(uploadedInfo)
 This event fires when upload completed. This event has argument for uploaded file info.
 * String path: Uploaded path of file.
+* String name: Name of the file
 
 ## Browser Supports
 This module uses FileReader API, so latest browser is required.
