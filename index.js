@@ -50,7 +50,8 @@ function SocketIOFile(socket, options) {
             size: data.size,
             data: '',
             uploaded: 0,
-            path: `${this.uploadDir}/${fileName}`
+            path: `${this.uploadDir}/${fileName}`,
+            abort: false
         };
 
 		let stream = 0;
@@ -88,65 +89,81 @@ function SocketIOFile(socket, options) {
         });
 	});
 
+    this.socket.on('socket.io-file::abort', (data) => {
+        let fileName = data.name;
+        
+        fs.unlink(files[fileName].path);
+        files[fileName].abort = true;
+
+        this.socket.emit('socket.io-file::abort', {});
+    });
+
 	this.socket.on('socket.io-file::stream', (data) => {
 		let fileName = data.name;
-        files[fileName].uploaded += data.data.length;
-        files[fileName].data += data.data;
 
-		// on fully uploaded
-        if(files[fileName].uploaded == files[fileName].size) {
-            fs.write(files[fileName].fd, files[fileName].data, null, 'Binary', (err, writen) => {
-                const streamObj = { 
-					stream,
-                    size: files[fileName].size,
-					uploaded: files[fileName].size,
-					percent: (files[fileName].uploaded / files[fileName].size) * 100
-				};
-
-                this.emit('stream', streamObj);
-                this.emit('complete', {
-                    path: files[fileName].path
-                });
-
-				socket.emit('socket.io-file::stream', streamObj);
-                socket.emit('socket.io-file::complete', {
-                    path: files[fileName].path
-                });
-
-                delete files[fileName];
-            });
+        if(files[fileName].abort) {
+            delete files[fileName]; 
         }
-		// on reaches buffer limit
-        else if(files[fileName].data.length > MAX_BUFFER_SIZE) {
-            fs.write(files[fileName].fd, files[fileName].data, null, 'Binary', (err, writen) => {
-                files[fileName].data = '';		// clear the buffer
+        else {
+            files[fileName].uploaded += data.data.length;
+            files[fileName].data += data.data;
 
+            // on fully uploaded
+            if(files[fileName].uploaded == files[fileName].size) {
+                fs.write(files[fileName].fd, files[fileName].data, null, 'Binary', (err, writen) => {
+                    const streamObj = { 
+                        stream,
+                        size: files[fileName].size,
+                        uploaded: files[fileName].size,
+                        percent: (files[fileName].uploaded / files[fileName].size) * 100
+                    };
+
+                    this.emit('stream', streamObj);
+                    this.emit('complete', {
+                        path: files[fileName].path
+                    });
+
+                    socket.emit('socket.io-file::stream', streamObj);
+                    socket.emit('socket.io-file::complete', {
+                        path: files[fileName].path
+                    });
+
+                    delete files[fileName];
+                });
+            }
+            // on reaches buffer limit
+            else if(files[fileName].data.length > MAX_BUFFER_SIZE) {
+                fs.write(files[fileName].fd, files[fileName].data, null, 'Binary', (err, writen) => {
+                    files[fileName].data = '';		// clear the buffer
+
+                    var stream = files[fileName].uploaded / CHUNK_SIZE;
+
+                    const streamObj = { 
+                        stream,
+                        size: files[fileName].size,
+                        uploaded: files[fileName].uploaded,
+                        percent: (files[fileName].uploaded / files[fileName].size) * 100
+                    };
+
+                    this.emit('stream', streamObj);
+                    socket.emit('socket.io-file::stream', streamObj);
+                });
+            }
+            else{
                 var stream = files[fileName].uploaded / CHUNK_SIZE;
-
+                
                 const streamObj = { 
-					stream,
+                    stream,
                     size: files[fileName].size,
-					uploaded: files[fileName].uploaded,
-					percent: (files[fileName].uploaded / files[fileName].size) * 100
-				};
-
+                    uploaded: files[fileName].uploaded,
+                    percent: (files[fileName].uploaded / files[fileName].size) * 100
+                };
+                
                 this.emit('stream', streamObj);
                 socket.emit('socket.io-file::stream', streamObj);
-            });
-		}
-        else{
-            var stream = files[fileName].uploaded / CHUNK_SIZE;
-            
-            const streamObj = { 
-                stream,
-                size: files[fileName].size,
-				uploaded: files[fileName].uploaded,
-				percent: (files[fileName].uploaded / files[fileName].size) * 100
-            };
-            
-            this.emit('stream', streamObj);
-            socket.emit('socket.io-file::stream', streamObj);
+            }
         }
+
 	});
 }
 util.inherits(SocketIOFile, EventEmitter);
