@@ -5,6 +5,7 @@ Socket.io-file is module for uploading file via Socket.io.
 ## Example
 
 You can found full source code here: [Example Page](https://github.com/rico345100/socket.io-file-example)
+Or [Browserify Example](https://github.com/rico345100/socket.io-file-example-browserify)
 
 ### Server side
 
@@ -105,9 +106,9 @@ This event fires when client sending the data from server, and server receives i
 * Number uploaded: Amount of uploaded.
 * Number percent: Percentage of how much uploaded
 
-### Event.complete()
-This event fires when upload completed.
-
+### Event.complete(uploadedInfo)
+This event fires when upload completed. This event has argument for uploaded file info.
+* String path: Uploaded path of file.
 
 ## Browser Supports
 This module uses FileReader API, so latest browser is required.

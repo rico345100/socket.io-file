@@ -49,7 +49,8 @@ function SocketIOFile(socket, options) {
 		files[fileName] = { 
             size: data.size,
             data: '',
-            uploaded: 0
+            uploaded: 0,
+            path: `${this.uploadDir}/${fileName}`
         };
 
 		let stream = 0;
@@ -103,10 +104,14 @@ function SocketIOFile(socket, options) {
 				};
 
                 this.emit('stream', streamObj);
-                this.emit('complete', {});
+                this.emit('complete', {
+                    path: files[fileName].path
+                });
 
 				socket.emit('socket.io-file::stream', streamObj);
-                socket.emit('socket.io-file::complete', {});
+                socket.emit('socket.io-file::complete', {
+                    path: files[fileName].path
+                });
 
                 delete files[fileName];
             });
