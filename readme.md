@@ -95,6 +95,44 @@ Create new SocketIOFile object. This object automatically handles all file uploa
 Options are:
 * uploadDir: Path for uploading file. Directory can be recursive, like 'user/data/music'.
 
+#### Since version 1.4, you can set multiple paths. Use upload dir with object. Client can specify the path with a key as 'to' option.
+
+##### Server side
+
+```javascript
+var uploader = new SocketIOFile(socket, {
+	uploadDir: {
+		music: 'data/music',
+		image: 'data/image'
+	}
+});
+```
+
+##### Client side
+
+```javascript
+document.getElementById('uploadMusic').addEventListener('click', function() {
+	var file = document.getElementById('FileBox').files[0];
+	socketIOFile.upload(file, {
+		types: [
+			'audio/mp3'
+		],
+		to: 'music'
+	});
+});
+document.getElementById('uploadImage').addEventListener('click', function() {
+	var file = document.getElementById('FileBox').files[0];
+	socketIOFile.upload(file, {
+		types: [
+			'image/png',
+			'image/jpeg',
+			'image/pjpeg
+		],
+		to: 'image'
+	});
+});
+```
+
 
 ### Event.start(fileInfo)
 This event fires when upload begins, sending fileInfo object as first parameter received from Client before sending it. fileInfo object contains: name(file's name) and size(file's size).

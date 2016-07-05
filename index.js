@@ -27,16 +27,35 @@ function SocketIOFile(socket, options) {
 	this.socket = socket;
     this.uploadDir = '';
 
+    var sendError = (err) => {
+        this.socket.emit('socket.io-file::error', err);
+        this.emit('error', err);
+    };
+
     // create upload dir if not exists
     if(options.uploadDir) {
         let dir = options.uploadDir;
 
-        try {
-            fs.accessSync(dir, fs.F_OK);
+        function createDirectoryIfNotExists(dir) {
+            try {
+                fs.accessSync(dir, fs.F_OK);
+            }
+            catch(e) {
+                // create directory if not exists
+                mkdirSyncRecursively(dir, '0755');
+            }
         }
-        catch(e) {
-            // create directory if not exists
-            mkdirSyncRecursively(dir, '0755');
+
+        if(typeof options.uploadDir === 'string') {
+            createDirectoryIfNotExists(dir);
+        }
+        else if(typeof options.uploadDir === 'object') {
+            for(var key in options.uploadDir) {
+                createDirectoryIfNotExists(options.uploadDir[key]);
+            }
+        }
+        else {
+            return sendError('options.uploadDir must be string or object array.');
         }
 
         this.uploadDir = dir;
@@ -44,20 +63,33 @@ function SocketIOFile(socket, options) {
 
 	this.socket.on('socket.io-file::start', (data) => {
 		let fileName = data.name;
+        let uploadDir;
+        
+        if(typeof this.uploadDir === 'object') {
+            if(data.uploadTo && this.uploadDir[data.uploadTo]) {
+                uploadDir = `${this.uploadDir[data.uploadTo]}`;
+            }
+            else {
+                return sendError('cannot find upload directory: ' + data.uploadTo);
+            }
+        }
+        else {
+            uploadDir = `${this.uploadDir}`;
+        }
         
 		// Create a new Entry in The Files Variable
 		files[fileName] = { 
             size: data.size,
             data: '',
             uploaded: 0,
-            path: `${this.uploadDir}/${fileName}`,
+            path: uploadDir,
             abort: false
         };
 
 		let stream = 0;
 
 		try {
-            let stat = fs.statSync(`${this.uploadDir}/${fileName}`);
+            let stat = fs.statSync(`${uploadDir}/${fileName}`);
 
             if(stat.isFile()) {
                 files[fileName].uploaded = stat.size;
@@ -69,9 +101,9 @@ function SocketIOFile(socket, options) {
 
         self.emit('start', data);
 
-        fs.open(`${this.uploadDir}/${fileName}`, 'a', '0755', (err, fd) => {
+        fs.open(`${uploadDir}/${fileName}`, 'a', '0755', (err, fd) => {
             if(err) {
-                throw err;
+                return sendError('cannot find upload directory: ' + err);
             }
             else {
                 files[fileName].fd = fd;	 //We store the file handler so we can write to it later
@@ -92,7 +124,7 @@ function SocketIOFile(socket, options) {
     this.socket.on('socket.io-file::abort', (data) => {
         let fileName = data.name;
         
-        fs.unlink(files[fileName].path);
+        fs.unlink(`${files[fileName].path}/${fileName}`);
         files[fileName].abort = true;
 
         this.socket.emit('socket.io-file::abort', {});
