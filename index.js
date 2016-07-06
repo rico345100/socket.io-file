@@ -64,13 +64,14 @@ function SocketIOFile(socket, options) {
 	this.socket.on('socket.io-file::start', (data) => {
 		let fileName = data.name;
         let uploadDir;
+        let uploadTo = data.uploadTo;
         
         if(typeof this.uploadDir === 'object') {
-            if(data.uploadTo && this.uploadDir[data.uploadTo]) {
-                uploadDir = `${this.uploadDir[data.uploadTo]}`;
+            if(uploadTo && this.uploadDir[uploadTo]) {
+                uploadDir = `${this.uploadDir[uploadTo]}`;
             }
             else {
-                return sendError('cannot find upload directory: ' + data.uploadTo);
+                return sendError('cannot find upload directory: ' + uploadTo);
             }
         }
         else {
@@ -83,7 +84,8 @@ function SocketIOFile(socket, options) {
             data: '',
             uploaded: 0,
             path: uploadDir,
-            abort: false
+            abort: false,
+            uploadTo
         };
 
 		let stream = 0;
@@ -153,13 +155,15 @@ function SocketIOFile(socket, options) {
                     this.emit('stream', streamObj);
                     this.emit('complete', {
                         name: fileName,
-                        path: files[fileName].path
+                        path: files[fileName].path,
+                        uploadTo: files[fileName].uploadTo
                     });
 
                     socket.emit('socket.io-file::stream', streamObj);
                     socket.emit('socket.io-file::complete', {
                         name: fileName,
-                        path: files[fileName].path
+                        path: files[fileName].path,
+                        uploadTo: files[fileName].uploadTo
                     });
 
                     delete files[fileName];

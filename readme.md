@@ -126,7 +126,7 @@ document.getElementById('uploadImage').addEventListener('click', function() {
 		types: [
 			'image/png',
 			'image/jpeg',
-			'image/pjpeg
+			'image/pjpeg'
 		],
 		to: 'image'
 	});
