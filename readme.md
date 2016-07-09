@@ -148,6 +148,8 @@ This event fires when client sending the data from server, and server receives i
 This event fires when upload completed. This event has argument for uploaded file info.
 * String path: Uploaded path of file.
 * String name: Name of the file
+* String uploadTo: Argument passed by Client on starting upload as 'to' argument.
+* Object data: Custom data was sent from Client.
 
 ## Browser Supports
 This module uses FileReader API, so latest browser is required.

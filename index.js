@@ -4,7 +4,6 @@ const util = require('util');
 const fs = require('fs');
 const path = require('path');
 
-const files = {};
 const CHUNK_SIZE = 524288;
 const MAX_BUFFER_SIZE = 10485760;
 
@@ -21,7 +20,10 @@ function mkdirSyncRecursively(dir, mode) {
 }
 
 function SocketIOFile(socket, options) {
-    var self = this;
+    const self = this;
+    const clients = {};
+    const files = {};
+
     options = options || {};
 
 	this.socket = socket;
@@ -61,10 +63,20 @@ function SocketIOFile(socket, options) {
         this.uploadDir = dir;
     }
 
+    this.socket.on('socket.io-file::sync', (data) => {
+        clients[data.id] = true;
+
+        this.socket.emit('socket.io-file::sync', {
+            done: true
+        });
+    });
+
 	this.socket.on('socket.io-file::start', (data) => {
+        let id = data.id;
 		let fileName = data.name;
         let uploadDir;
         let uploadTo = data.uploadTo;
+        let uploadData = data.data;
         
         if(typeof this.uploadDir === 'object') {
             if(uploadTo && this.uploadDir[uploadTo]) {
@@ -79,13 +91,15 @@ function SocketIOFile(socket, options) {
         }
         
 		// Create a new Entry in The Files Variable
-		files[fileName] = { 
+		files[fileName] = {
+            id,
             size: data.size,
             data: '',
             uploaded: 0,
             path: uploadDir,
             abort: false,
-            uploadTo
+            uploadTo,
+            uploadData
         };
 
 		let stream = 0;
@@ -110,7 +124,7 @@ function SocketIOFile(socket, options) {
             else {
                 files[fileName].fd = fd;	 //We store the file handler so we can write to it later
 
-                const streamObj = { 
+                const streamObj = {
 					stream,
                     size: files[fileName].size,
 					uploaded: 0,
@@ -118,7 +132,7 @@ function SocketIOFile(socket, options) {
 				};
 
                 this.emit('stream', streamObj);
-                socket.emit('socket.io-file::stream', streamObj);
+                socket.emit(`socket.io-file::${id}::stream`, streamObj);
             }
         });
 	});
@@ -129,11 +143,12 @@ function SocketIOFile(socket, options) {
         fs.unlink(`${files[fileName].path}/${fileName}`);
         files[fileName].abort = true;
 
-        this.socket.emit('socket.io-file::abort', {});
+        this.socket.emit(`socket.io-file::${id}::abort`, {});
     });
 
 	this.socket.on('socket.io-file::stream', (data) => {
 		let fileName = data.name;
+        let id = data.id;
 
         if(files[fileName].abort) {
             delete files[fileName]; 
@@ -156,14 +171,16 @@ function SocketIOFile(socket, options) {
                     this.emit('complete', {
                         name: fileName,
                         path: files[fileName].path,
-                        uploadTo: files[fileName].uploadTo
+                        uploadTo: files[fileName].uploadTo,
+                        data: files[fileName].uploadData
                     });
 
-                    socket.emit('socket.io-file::stream', streamObj);
-                    socket.emit('socket.io-file::complete', {
+                    socket.emit(`socket.io-file::${id}::stream`, streamObj);
+                    socket.emit(`socket.io-file::${id}::complete`, {
                         name: fileName,
                         path: files[fileName].path,
-                        uploadTo: files[fileName].uploadTo
+                        uploadTo: files[fileName].uploadTo,
+                        data: files[fileName].uploadData
                     });
 
                     delete files[fileName];
@@ -184,7 +201,7 @@ function SocketIOFile(socket, options) {
                     };
 
                     this.emit('stream', streamObj);
-                    socket.emit('socket.io-file::stream', streamObj);
+                    socket.emit(`socket.io-file::${id}::stream`, streamObj);
                 });
             }
             else {
@@ -198,7 +215,7 @@ function SocketIOFile(socket, options) {
                 };
                 
                 this.emit('stream', streamObj);
-                socket.emit('socket.io-file::stream', streamObj);
+                socket.emit(`socket.io-file::${id}::stream`, streamObj);
             }
         }
 
