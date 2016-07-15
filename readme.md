@@ -140,6 +140,7 @@ This event fires when upload begins, sending fileInfo object as first parameter 
 ### Event.stream(streamData)
 This event fires when client sending the data from server, and server receives it. streamData is object that contains:
 * Object stream: Internally, this module merge the data from client until file is all uploaded. This stream is part of file that client keep sending it.
+* String name: Name of the file.
 * Number size: Total file size.
 * Number uploaded: Amount of uploaded.
 * Number percent: Percentage of how much uploaded

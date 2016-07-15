@@ -73,11 +73,12 @@ function SocketIOFile(socket, options) {
 
 	this.socket.on('socket.io-file::start', (data) => {
         let id = data.id;
+        var uploadId = data.uploadId;
 		let fileName = data.name;
         let uploadDir;
         let uploadTo = data.uploadTo;
         let uploadData = data.data;
-        
+
         if(typeof this.uploadDir === 'object') {
             if(uploadTo && this.uploadDir[uploadTo]) {
                 uploadDir = `${this.uploadDir[uploadTo]}`;
@@ -93,6 +94,7 @@ function SocketIOFile(socket, options) {
 		// Create a new Entry in The Files Variable
 		files[fileName] = {
             id,
+            uploadId,
             size: data.size,
             data: '',
             uploaded: 0,
@@ -125,14 +127,17 @@ function SocketIOFile(socket, options) {
                 files[fileName].fd = fd;	 //We store the file handler so we can write to it later
 
                 const streamObj = {
+                    id,
+                    uploadId,
 					stream,
+                    name: fileName,
                     size: files[fileName].size,
 					uploaded: 0,
 					percent: 0
 				};
 
                 this.emit('stream', streamObj);
-                socket.emit(`socket.io-file::${id}::stream`, streamObj);
+                socket.emit(`socket.io-file::${id}::${uploadId}::stream`, streamObj);
             }
         });
 	});
@@ -143,44 +148,63 @@ function SocketIOFile(socket, options) {
         fs.unlink(`${files[fileName].path}/${fileName}`);
         files[fileName].abort = true;
 
-        this.socket.emit(`socket.io-file::${id}::abort`, {});
+        this.socket.emit(`socket.io-file::${id}::abort`, {
+            name: fileName,
+            size: files[fileName].size
+        });
     });
 
 	this.socket.on('socket.io-file::stream', (data) => {
-		let fileName = data.name;
         let id = data.id;
+        let uploadId = data.uploadId;
+        let fileName = data.name;
+        let file = files[fileName];
 
-        if(files[fileName].abort) {
+        if(file.abort) {
             delete files[fileName]; 
         }
         else {
             files[fileName].uploaded += data.data.length;
             files[fileName].data += data.data;
 
+            //console.log('Stream received of ' + fileName + ' ( ' + files[fileName].uploaded + ' / ' + files[fileName].size + ')');
+            //console.log('Stream received of ' + id+':'+uploadId + ' ( ' + files[fileName].uploaded + ' / ' + files[fileName].size + ')');
+
             // on fully uploaded
             if(files[fileName].uploaded == files[fileName].size) {
-                fs.write(files[fileName].fd, files[fileName].data, null, 'Binary', (err, writen) => {
+                //console.log("\n========================= Upload Complete: " + id+':'+uploadId + " =========================\n");
+
+                fs.write(file.fd, file.data, null, 'Binary', (err, writen) => {
                     const streamObj = { 
                         stream,
-                        size: files[fileName].size,
-                        uploaded: files[fileName].size,
-                        percent: (files[fileName].uploaded / files[fileName].size) * 100
+                        id,
+                        uploadId,
+                        name: fileName,
+                        size: file.size,
+                        uploaded: file.size,
+                        percent: (file.uploaded / file.size) * 100
                     };
 
                     this.emit('stream', streamObj);
                     this.emit('complete', {
+                        id,
+                        uploadId,
                         name: fileName,
-                        path: files[fileName].path,
-                        uploadTo: files[fileName].uploadTo,
-                        data: files[fileName].uploadData
+                        size: file.size,
+                        path: file.path,
+                        uploadTo: file.uploadTo,
+                        data: file.uploadData
                     });
 
-                    socket.emit(`socket.io-file::${id}::stream`, streamObj);
-                    socket.emit(`socket.io-file::${id}::complete`, {
+                    socket.emit(`socket.io-file::${id}::${uploadId}::stream`, streamObj);
+                    socket.emit(`socket.io-file::${id}::${uploadId}::complete`, {
+                        id,
+                        uploadId,
                         name: fileName,
-                        path: files[fileName].path,
-                        uploadTo: files[fileName].uploadTo,
-                        data: files[fileName].uploadData
+                        size: file.size,
+                        path: file.path,
+                        uploadTo: file.uploadTo,
+                        data: file.uploadData
                     });
 
                     delete files[fileName];
@@ -195,27 +219,35 @@ function SocketIOFile(socket, options) {
 
                     const streamObj = { 
                         stream,
-                        size: files[fileName].size,
-                        uploaded: files[fileName].uploaded,
-                        percent: (files[fileName].uploaded / files[fileName].size) * 100
+                        id,
+                        uploadId,
+                        name: fileName,
+                        size: file.size,
+                        uploaded: file.uploaded,
+                        percent: (file.uploaded / file.size) * 100
                     };
 
                     this.emit('stream', streamObj);
-                    socket.emit(`socket.io-file::${id}::stream`, streamObj);
+                    socket.emit(`socket.io-file::${id}::${uploadId}::stream`, streamObj);
                 });
             }
             else {
                 var stream = files[fileName].uploaded / CHUNK_SIZE;
-                
+            
                 const streamObj = { 
                     stream,
-                    size: files[fileName].size,
-                    uploaded: files[fileName].uploaded,
-                    percent: (files[fileName].uploaded / files[fileName].size) * 100
+                    id,
+                    uploadId,
+                    name: fileName,
+                    size: file.size,
+                    uploaded: file.uploaded,
+                    percent: (file.uploaded / file.size) * 100
                 };
+
+                //console.log('Stream request of ' + id+':'+uploadId + ', stream: ' + stream);
                 
                 this.emit('stream', streamObj);
-                socket.emit(`socket.io-file::${id}::stream`, streamObj);
+                socket.emit(`socket.io-file::${id}::${uploadId}::stream`, streamObj);
             }
         }
 
