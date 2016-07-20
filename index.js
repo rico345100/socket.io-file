@@ -143,15 +143,24 @@ function SocketIOFile(socket, options) {
 	});
 
     this.socket.on('socket.io-file::abort', (data) => {
-        let fileName = data.name;
-        
-        fs.unlink(`${files[fileName].path}/${fileName}`);
-        files[fileName].abort = true;
+        let uploadId = data.uploadId;
 
-        this.socket.emit(`socket.io-file::${id}::abort`, {
-            name: fileName,
-            size: files[fileName].size
-        });
+        for(var key in files) {
+            if(files[key].uploadId === uploadId) {
+                let fileName = key;
+
+                fs.unlink(`${files[fileName].path}/${fileName}`);
+                files[fileName].abort = true;
+
+                this.socket.emit(`socket.io-file::${files[fileName].id}::abort`, {
+                    uploadId,
+                    name: fileName,
+                    size: files[fileName].size
+                });
+
+                break;
+            }
+        }
     });
 
 	this.socket.on('socket.io-file::stream', (data) => {
