@@ -1,11 +1,23 @@
 {
   "name": "socket.io-file",
-  "version": "1.0.59",
+  "version": "2.0.0",
   "description": "File uploader module for Socket.io",
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/rico345100/socket.io-file"
+  },
+  "keywords": [
+    "WebSocket",
+    "Socket.io",
+    "binary",
+    "arraybuffer",
+    "file",
+    "upload"
+  ],
   "author": ".modernator",
   "license": "MIT",
   "dependencies": {}

@@ -3,9 +3,7 @@ const EventEmitter = require('events').EventEmitter;
 const util = require('util');
 const fs = require('fs');
 const path = require('path');
-
-const CHUNK_SIZE = 524288;
-const MAX_BUFFER_SIZE = 10485760;
+const mime = require('mime');
 
 function mkdirSyncRecursively(dir, mode) {
     try {
@@ -19,247 +17,247 @@ function mkdirSyncRecursively(dir, mode) {
     }
 }
 
-function SocketIOFile(socket, options) {
-    const self = this;
-    const clients = {};
-    const files = {};
+function createDirectoryIfNotExists(dir) {
+	try {
+		fs.accessSync(dir, fs.F_OK);
+	}
+	catch(e) {
+		// create directory if not exists
+		mkdirSyncRecursively(dir, '0755');
+	}
+}
 
-    options = options || {};
+function SocketIOFile(socket, options) {
+	if(!socket) {
+		throw new Error('SocketIOFile requires Socket.');
+	}
+
+	this.options = options || {};
+	this.maxFileSize = +options.maxFileSize || undefined;
+	this.accepts = options.accepts || [];
+	this.chunkSize = +options.chunkSize || 10240;
+	this.transmissionDelay = options.transmissionDelay || 0;
+	this.overwrite = !!options.overwrite || false;
+
+	if(!options.uploadDir) {
+		throw new Error('No upload directory specified.');
+	}
+	
+	// check directory is exists
+	if(typeof options.uploadDir === 'string') {
+		createDirectoryIfNotExists(options.uploadDir);
+	}
+	else if(typeof options.uploadDir === 'object') {
+		for(var key in options.uploadDir) {
+			createDirectoryIfNotExists(options.uploadDir[key]);
+		}
+	}
+	else {
+		throw new Error('options.uploadDir must be string or object array.');
+	}
 
 	this.socket = socket;
-    this.uploadDir = '';
 
-    var sendError = (err) => {
-        this.socket.emit('socket.io-file::error', err);
-        this.emit('error', err);
-    };
-
-    // create upload dir if not exists
-    if(options.uploadDir) {
-        let dir = options.uploadDir;
-
-        function createDirectoryIfNotExists(dir) {
-            try {
-                fs.accessSync(dir, fs.F_OK);
-            }
-            catch(e) {
-                // create directory if not exists
-                mkdirSyncRecursively(dir, '0755');
-            }
-        }
-
-        if(typeof options.uploadDir === 'string') {
-            createDirectoryIfNotExists(dir);
-        }
-        else if(typeof options.uploadDir === 'object') {
-            for(var key in options.uploadDir) {
-                createDirectoryIfNotExists(options.uploadDir[key]);
-            }
-        }
-        else {
-            return sendError('options.uploadDir must be string or object array.');
-        }
-
-        this.uploadDir = dir;
-    }
-
-    this.socket.on('socket.io-file::sync', (data) => {
-        clients[data.id] = true;
-
-        this.socket.emit('socket.io-file::sync', {
-            done: true
-        });
-    });
-
-	this.socket.on('socket.io-file::start', (data) => {
-        let id = data.id;
-        var uploadId = data.uploadId;
-		let fileName = data.name;
-        let uploadDir;
-        let uploadTo = data.uploadTo;
-        let uploadData = data.data;
-
-        if(typeof this.uploadDir === 'object') {
-            if(uploadTo && this.uploadDir[uploadTo]) {
-                uploadDir = `${this.uploadDir[uploadTo]}`;
-            }
-            else {
-                return sendError('cannot find upload directory: ' + uploadTo);
-            }
-        }
-        else {
-            uploadDir = `${this.uploadDir}`;
-        }
-        
-		// Create a new Entry in The Files Variable
-		files[fileName] = {
-            id,
-            uploadId,
-            size: data.size,
-            data: '',
-            uploaded: 0,
-            path: uploadDir,
-            abort: false,
-            uploadTo,
-            uploadData
-        };
-
-		let stream = 0;
-
-		try {
-            let stat = fs.statSync(`${uploadDir}/${fileName}`);
-
-            if(stat.isFile()) {
-                files[fileName].uploaded = stat.size;
-                stream = stat.size / CHUNK_SIZE;
-            }
-        }
-		// It's a New File
-        catch(e) {}
-
-        self.emit('start', data);
-
-        fs.open(`${uploadDir}/${fileName}`, 'a', '0755', (err, fd) => {
-            if(err) {
-                return sendError('cannot find upload directory: ' + err);
-            }
-            else {
-                files[fileName].fd = fd;	 //We store the file handler so we can write to it later
-
-                const streamObj = {
-                    id,
-                    uploadId,
-					stream,
-                    name: fileName,
-                    size: files[fileName].size,
-					uploaded: 0,
-					percent: 0
-				};
-
-                this.emit('stream', streamObj);
-                socket.emit(`socket.io-file::${id}::${uploadId}::stream`, streamObj);
-            }
-        });
+	socket.once('socket.io-file::reqSync', () => {
+		socket.emit('socket.io-file::recvSync', {
+			maxFileSize: this.maxFileSize,
+			accepts: this.accepts,
+			chunkSize: this.chunkSize,
+			transmissionDelay: this.transmissionDelay
+		});
 	});
+	
+	var self = this;
+	var uploadingFiles = {};
 
-    this.socket.on('socket.io-file::abort', (data) => {
-        let uploadId = data.uploadId;
+	socket.on('socket.io-file::createFile', (fileInfo) => {
+		var id = fileInfo.id;
+		var uploadDir = null;
+		var uploadTo = fileInfo.uploadTo || '';
 
-        for(var key in files) {
-            if(files[key].uploadId === uploadId) {
-                let fileName = key;
-
-                fs.unlink(`${files[fileName].path}/${fileName}`);
-                files[fileName].abort = true;
-
-                this.socket.emit(`socket.io-file::${files[fileName].id}::abort`, {
-                    uploadId,
-                    name: fileName,
-                    size: files[fileName].size
-                });
-
-                break;
-            }
-        }
-    });
-
-	this.socket.on('socket.io-file::stream', (data) => {
-        let id = data.id;
-        let uploadId = data.uploadId;
-        let fileName = data.name;
-        let file = files[fileName];
-
-        if(file.abort) {
-            delete files[fileName]; 
-        }
-        else {
-            files[fileName].uploaded += data.data.length;
-            files[fileName].data += data.data;
-
-            //console.log('Stream received of ' + fileName + ' ( ' + files[fileName].uploaded + ' / ' + files[fileName].size + ')');
-            //console.log('Stream received of ' + id+':'+uploadId + ' ( ' + files[fileName].uploaded + ' / ' + files[fileName].size + ')');
-
-            // on fully uploaded
-            if(files[fileName].uploaded == files[fileName].size) {
-                //console.log("\n========================= Upload Complete: " + id+':'+uploadId + " =========================\n");
-
-                fs.write(file.fd, file.data, null, 'Binary', (err, writen) => {
-                    const streamObj = { 
-                        stream,
-                        id,
-                        uploadId,
-                        name: fileName,
-                        size: file.size,
-                        uploaded: file.size,
-                        percent: (file.uploaded / file.size) * 100
-                    };
-
-                    this.emit('stream', streamObj);
-                    this.emit('complete', {
-                        id,
-                        uploadId,
-                        name: fileName,
-                        size: file.size,
-                        path: file.path,
-                        uploadTo: file.uploadTo,
-                        data: file.uploadData
-                    });
-
-                    socket.emit(`socket.io-file::${id}::${uploadId}::stream`, streamObj);
-                    socket.emit(`socket.io-file::${id}::${uploadId}::complete`, {
-                        id,
-                        uploadId,
-                        name: fileName,
-                        size: file.size,
-                        path: file.path,
-                        uploadTo: file.uploadTo,
-                        data: file.uploadData
-                    });
-
-                    delete files[fileName];
-                });
-            }
-            // on reaches buffer limit
-            else if(files[fileName].data.length > MAX_BUFFER_SIZE) {
-                fs.write(files[fileName].fd, files[fileName].data, null, 'Binary', (err, writen) => {
-                    files[fileName].data = '';		// clear the buffer
-
-                    var stream = files[fileName].uploaded / CHUNK_SIZE;
-
-                    const streamObj = { 
-                        stream,
-                        id,
-                        uploadId,
-                        name: fileName,
-                        size: file.size,
-                        uploaded: file.uploaded,
-                        percent: (file.uploaded / file.size) * 100
-                    };
-
-                    this.emit('stream', streamObj);
-                    socket.emit(`socket.io-file::${id}::${uploadId}::stream`, streamObj);
-                });
+		function sendError(err) {
+			socket.emit(`socket.io-file::error::${id}`, {
+				message: err.message
+			});
+			self.emit('error', err);
+		}
+		
+		if(typeof options.uploadDir === 'string') {
+			uploadDir = path.join(options.uploadDir, fileInfo.name);
+		}
+		else if(typeof options.uploadDir === 'object') {
+			if(!uploadTo) {
+				return sendError(new Error('Upload directory must be specified in multiple directories.'));
+			}
+			else if(options.uploadDir[uploadTo]) {
+                uploadDir = path.join(options.uploadDir[uploadTo], fileInfo.name);
             }
             else {
-                var stream = files[fileName].uploaded / CHUNK_SIZE;
-            
-                const streamObj = { 
-                    stream,
-                    id,
-                    uploadId,
-                    name: fileName,
-                    size: file.size,
-                    uploaded: file.uploaded,
-                    percent: (file.uploaded / file.size) * 100
-                };
-
-                //console.log('Stream request of ' + id+':'+uploadId + ', stream: ' + stream);
-                
-                this.emit('stream', streamObj);
-                socket.emit(`socket.io-file::${id}::${uploadId}::stream`, streamObj);
+				return sendError(new Error('Upload directory ' + uploadTo + ' is not exists.'));
             }
-        }
+		}
+		else if(fileInfo.size > this.maxFileSize) {
+			this.emit('error', err);
+			return sendError(new new Error('Max Uploading File size must be under ' + this.maxFileSize + ' byte(s).'));
+		}
 
+		var startTime = new Date();
+
+		this.emit('start', { 
+			name: fileInfo.name, 
+			size: fileInfo.size,
+			uploadDir: uploadDir
+		});
+
+		const uploadComplete = () => {
+			uploadingFiles[id].writeStream.end();
+
+			let endTime = new Date();
+			
+			let mimeType = mime.lookup(uploadDir);
+			let emitObj = {
+				name: uploadingFiles[id].name, 
+				size: uploadingFiles[id].size, 
+				wrote: uploadingFiles[id].wrote,
+				uploadDir: uploadingFiles[id].uploadDir,
+				mime: mimeType,
+				estimated: endTime - startTime
+			};
+			
+			if(this.accepts && this.accepts.length > 0) {
+				let found = false;
+
+				for(var i = 0; i < this.accepts.length; i++) {
+					let accept = this.accepts[i];
+
+					if(mimeType === accept) {
+						found = true;
+						break;
+					}
+				}
+
+				// if mime is invalid, remove files and emit error
+				if(!found) {
+					fs.unlink(uploadDir);	// no after works.
+
+					let err = new Error('Not Acceptable file type ' + mimeType + ' of ' + fileInfo.name + '. Type must be one of these: ' + this.accepts.join(', '));
+					this.emit('error', err);
+					return sendError(err);
+				}
+				else {
+					self.socket.emit(`socket.io-file::complete::${id}`, emitObj);
+					self.emit('complete', emitObj);
+				}
+			}
+			else {
+				self.socket.emit(`socket.io-file::complete::${id}`, emitObj);
+				self.emit('complete', emitObj);
+			}			
+
+			// Release event handlers
+			socket.removeAllListeners(`socket.io-file::stream::${id}`);
+			socket.removeAllListeners(`socket.io-file::done::${id}`);
+			socket.removeAllListeners(`socket.io-file::complete::${id}`);
+			socket.removeAllListeners(`socket.io-file::abort::${id}`);
+			socket.removeAllListeners(`socket.io-file::error::${id}`);
+
+			delete uploadingFiles[id];
+		};
+
+		var writeStream = fs.createWriteStream(uploadDir);
+		
+		uploadingFiles[id] = {
+			writeStream: writeStream,
+			name: fileInfo.name,
+			size: fileInfo.size,
+			wrote: 0,
+			uploadDir: uploadDir
+		};
+
+		if(!options.overwrite) {
+			let isFileExists = false;
+
+			try {
+				fs.accessSync(uploadDir, fs.F_OK);
+				isFileExists = true;
+			}
+			catch(e) {
+				// console.log('File is not exists, so create new one.');
+			}
+
+			if(isFileExists) return uploadComplete();
+		}
+
+		socket.emit(`socket.io-file::request::${id}`);
+
+		socket.on(`socket.io-file::stream::${id}`, (chunk) => {
+			if(uploadingFiles[id].abort) {
+				socket.removeAllListeners(`socket.io-file::stream::${id}`);
+				socket.removeAllListeners(`socket.io-file::done::${id}`);
+				socket.removeAllListeners(`socket.io-file::complete::${id}`);
+				socket.removeAllListeners(`socket.io-file::abort::${id}`);
+				socket.removeAllListeners(`socket.io-file::error::${id}`);
+
+				uploadingFiles[id].writeStream.end();
+				delete uploadingFiles[id];
+				return;
+			}
+
+			var writeStream = uploadingFiles[id].writeStream;
+
+			function write() {
+				let result = (uploadingFiles[id].wrote + chunk.length) > (self.maxFileSize);
+				
+				if( (uploadingFiles[id].wrote + chunk.length) > (self.maxFileSize)) {
+					return sendError(new Error(`Uploading file size exceeded max file size ${self.maxFileSize} byte(s).`));
+				}
+
+				var writeDone = writeStream.write(chunk);
+				uploadingFiles[id].wrote += chunk.length;
+
+				self.emit('stream', {
+					name: uploadingFiles[id].name, 
+					size: uploadingFiles[id].size, 
+					wrote: uploadingFiles[id].wrote,
+					uploadDir: uploadingFiles[id].uploadDir
+				});
+
+				if(!writeDone) {
+					writeStream.once('drain', () => socket.emit(`socket.io-file::request::${id}`));
+				}
+				else {
+					if(self.transmissionDelay) {
+						setTimeout(() => {
+							socket.emit(`socket.io-file::request::${id}`);
+						}, self.transmissionDelay);
+					}
+					else {
+						socket.emit(`socket.io-file::request::${id}`);
+					}
+				}
+			}
+
+			write();
+		});
+		socket.on(`socket.io-file::done::${id}`, () => {
+			uploadComplete();
+		});
+		socket.on(`socket.io-file::abort::${id}`, () => {
+			uploadingFiles[id].abort = true;
+
+			self.emit('abort', {
+				name: uploadingFiles[id].name, 
+				size: uploadingFiles[id].size, 
+				wrote: uploadingFiles[id].wrote,
+				uploadDir: uploadingFiles[id].uploadDir
+			});
+			socket.emit(`socket.io-file::abort::${id}`, {
+				name: uploadingFiles[id].name, 
+				size: uploadingFiles[id].size, 
+				wrote: uploadingFiles[id].wrote,
+				uploadDir: uploadingFiles[id].uploadDir
+			});
+		});
 	});
 }
 util.inherits(SocketIOFile, EventEmitter);

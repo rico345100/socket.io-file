@@ -1,160 +1,224 @@
-# Socket.io-file
+# Socket.io-file 2.0
+Socket.io-file is now 2.0, much improved! See the below for details..!
+Also check the client [client module](https://github.com/rico345100/socket.io-file-client) too.
 
-Socket.io-file is module for uploading file via Socket.io.
+
+## Major Changes from 1.x to 2.x
+Socket.io-file 1.x used Binary String to send files. Binary String is little bit slower than direct Binary writes, and also server used fs.write, not writable stream.
+Recently, FileReader.readAsBinaryString() was deprecated, so I updated Socket.io-file to use ArrayBuffer(Object for manipulate Binary Data directly from JavaScript) instead of Binary String.
+
+Also, newer version has much more functionalities, like Server-side MIME type checking, File size limitations.
+Even you can configure the size of each transmission(chunk) any value you want, higher value gives you faster upload.
+
+
+## Features
+- Simple is the best.
+- File uploads
+- Highly improved performance
+- Using File Streams to write faster, efficient.
+- Checking mime, limit file size
+- Multiple file uploads
+
 
 ## Example
-
 You can found full source code here: [Example Page](https://github.com/rico345100/socket.io-file-example)
 Or [Browserify Example](https://github.com/rico345100/socket.io-file-example-browserify)
+
 
 ### Server side
 
 ```javascript
+"use strict";
+const express = require('express');
+const app = express();
+const http = require('http');
+const httpServer = http.Server(app);
+const io = require('socket.io')(httpServer);
 const SocketIOFile = require('socket.io-file');
 
+app.get('/', (req, res, next) => {
+	return res.sendFile(__dirname + '/client/index.html');
+});
+
+app.get('/app.js', (req, res, next) => {
+	return res.sendFile(__dirname + '/client/app.js');
+});
+
+app.get('/socket.io.js', (req, res, next) => {
+	return res.sendFile(__dirname + '/node_modules/socket.io-client/dist/socket.io.js');
+});
+
+app.get('/socket.io-file-client.js', (req, res, next) => {
+	return res.sendFile(__dirname + '/node_modules/socket.io-file-client/socket.io-file-client.js');
+});
+
 io.on('connection', (socket) => {
-	console.log('connected: ' + socket.id);
+	console.log('Socket connected.');
 
 	var uploader = new SocketIOFile(socket, {
-		uploadDir: 'data/music'
+		// uploadDir: {			// multiple directories
+		// 	music: 'data/music',
+		// 	document: 'data/document'
+		// },
+		uploadDir: 'data',							// simple directory
+		accepts: ['audio/mpeg', 'audio/mp3'],		// chrome and some of browsers checking mp3 as 'audio/mp3', not 'audio/mpeg'
+		maxFileSize: 4194304, 						// 4 MB. default is undefined(no limit)
+		chunkSize: 10240,							// default is 10240(1KB)
+		transmissionDelay: 0,						// delay of each transmission, higher value saves more cpu resources, lower upload speed. default is 0(no delay)
+		overwrite: true 							// overwrite file if exists, default is true.
 	});
-
 	uploader.on('start', (fileInfo) => {
-		console.log('Upload started');
+		console.log('Start uploading');
+		console.log(fileInfo);
 	});
-	uploader.on('stream', (data) => {
-		console.log('Streaming... ' + data.uploaded + ' / ' + data.size);
+	uploader.on('stream', (fileInfo) => {
+		console.log(`${fileInfo.wrote} / ${fileInfo.size} byte(s)`);
 	});
-	uploader.on('complete', () => {
-		console.log('Completed!');
+	uploader.on('complete', (fileInfo) => {
+		console.log('Upload Complete.');
+		console.log(fileInfo);
 	});
+	uploader.on('error', (err) => {
+		console.log('Error!', err);
+	});
+	uploader.on('abort', (fileInfo) => {
+		console.log('Aborted: ', fileInfo);
+	});
+});
+
+httpServer.listen(3000, () => {
+	console.log('Server listening on port 3000');
 });
 ```
 
 ### Client side
 
-#### HTML
+```javascript
+var socket = io('http://localhost:3000');
+var uploader = new SocketIOFileClient(socket);
+var form = document.getElementById('form');
+
+uploader.on('start', function(fileInfo) {
+	console.log('Start uploading', fileInfo);
+});
+uploader.on('stream', function(fileInfo) {
+	console.log('Streaming... sent ' + fileInfo.sent + ' bytes.');
+});
+uploader.on('complete', function(fileInfo) {
+	console.log('Upload Complete', fileInfo);
+});
+uploader.on('error', function(err) {
+	console.log('Error!', err);
+});
+uploader.on('abort', function(fileInfo) {
+	console.log('Aborted: ', fileInfo);
+});
+
+form.onsubmit = function(ev) {
+	ev.preventDefault();
+	
+	var fileEl = document.getElementById('file');
+	var uploadIds = uploader.upload(fileEl);
+
+	// setTimeout(function() {
+		// uploader.abort(uploadIds[0]);
+		// console.log(uploader.getUploadInfo());
+	// }, 1000);
+};
+```
+
 ```html
 <html>
 <head>
 	<meta charset="UTF-8">
-	<title>Socket File Upload</title>
+	<title>Socket.io-file 2.x File Upload Example</title>
 </head>
 <body>
-	<div id="UploadBox">
-		<h2>File Uploader</h2>
-		<span id="UploadArea">
-			<label for="FileBox">Choose A File:</label>
-			<input type="file" id="FileBox" />
-			<br />
+	<h1>Socket.io-file 2.x File Upload Example</h1>
+	<p>Select file and click upload button to upload.</p>
+	<p>Multiple upload also supports.</p>
 
-			<button type="button" id="UploadButton">Upload</button>
-		</span>
-	</div>
+	<form id="form">
+		<input type="file" id="file" multiple />
+		<input type="submit" value="Upload" />
+	</form>
 
-	<script src="/socket.io.js"></script>
-	<script src="/socket.io-file-client.js"></script>
-	<script src="/alter.js"></script>
+	<script src="socket.io.js"></script>
+	<script src="socket.io-file-client.js"></script>
+	<script src="app.js"></script>
 </body>
 </html>
 ```
 
-#### JavaScript
-```javascript
-var socket = io('http://localhost:3000');
-
-window.addEventListener('load', function() {
-	var socketIOFile = new SocketIOFileClient(socket);
-
-	socketIOFile.on('start', function() {
-		console.log('File uploading staring...');
-	});
-
-	socketIOFile.on('stream', function(data) {
-		//console.log('SocketIOFileClient: Client streaming... ' + (Math.round(data.percent * 100)/100) + '%');
-		console.log('SocketIOFileClient: Client streaming... ' + data.uploaded + ' / ' + data.size);
-	});
-
-	socketIOFile.on('complete', function() {
-		console.log('File Uploaded Successfully!');
-	});
-
-	document.getElementById('UploadButton').addEventListener('click', function() {
-		var file = document.getElementById('FileBox').files[0];
-		socketIOFile.upload(file);
-	});
-});
-```
-
 
 ## API
-### constructor SocketIOFile(socket, options)
+### constructor SocketIOFile(io socket, Object options)
+Create new SocketIOFile object.
 
-Create new SocketIOFile object. This object automatically handles all file uploads from client via Socket.io.
+Available optionts:
+- String uploadDir: String of directory want to upload. This value can be relative or absolute both. Or you can pass the object which has key as identifier, value as directory for multiple directories upload. Client can select the destination if server has multiple upload directories. Check the example to details.
+- Array accepts: Array of string that refers mime type. Note that browsers and server can recognize different(like mp3 file, Chrome recognize as "audio/mp3" while server recognize as "audio/mpeg"). See the example to detail later. Default is empty array, which means accept every file.
+- Number maxFileSize: Bytes of max file size. Default is undefined, means no limit.
+- Number chunkSize: Size of chunk you sending to. Default is 10240 = 1KB. Higher value gives you faster upload, uses more server resources. Lower value saves your server resources, slower upload.
+- Number transmissionDelay: Delay of each chunk transmission, default is 0. 0 means no delay, unit is ms. Use this property wisely to save your server resources with chunkSize.
+- Boolean overwite: If sets true, overwrite the file if already exists. Default is false, which upload gonna complete immediately if file already exists. 
 
-Options are:
-* uploadDir: Path for uploading file. Directory can be recursive, like 'user/data/music'.
+### Events
+SocketIOFile provides these events.
 
-#### Since version 1.4, you can set multiple paths. Use upload dir with object. Client can specify the path with a key as 'to' option.
+#### start
+Fired on starting file upload. This means server grant your uploading request and create empty file to begin writes. Argument has:
+- String name: Name of the file
+- Number size: Size of the file(bytes)
+- String uploadDir: Directory for writing.
 
-##### Server side
+#### stream
+Fired on getting chunks from client. Argument has:
+- String name
+- String uploadDir
+- Number size
+- Number wrote: Bytes of wrote
+
+#### complete
+Fired on upload complete. Argument has:
+- String name
+- String uploadDir
+- String mime: MIME type that server recognized.
+- Number size
+- Number wrote
+- Number estimated: Estimated uploading time as ms.
+
+#### abort
+Fired on abort uploading.
+- String name
+- String uploadDir
+- Number size
+- Number wrote
+
+#### error
+Fired on got an error. Passes Error object.
+
+
+## Multiple uploading path
+Socket.io-file supports multiple path upload. You can specify multiple upload path with passing object that has key as identifier, value as actual directory.
 
 ```javascript
 var uploader = new SocketIOFile(socket, {
 	uploadDir: {
 		music: 'data/music',
-		image: 'data/image'
+		document: 'data/document'
 	}
 });
 ```
 
-##### Client side
+Remember, if you are using multiple path upload, client must select which want to upload.
 
 ```javascript
-document.getElementById('uploadMusic').addEventListener('click', function() {
-	var file = document.getElementById('FileBox').files[0];
-	socketIOFile.upload(file, {
-		types: [
-			'audio/mp3'
-		],
-		to: 'music'
-	});
-});
-document.getElementById('uploadImage').addEventListener('click', function() {
-	var file = document.getElementById('FileBox').files[0];
-	socketIOFile.upload(file, {
-		types: [
-			'image/png',
-			'image/jpeg',
-			'image/pjpeg'
-		],
-		to: 'image'
-	});
+uploader.upload(fileEl, {
+	uploadTo: 'music'		// upload to data/music
 });
 ```
 
 
-### Event.start(fileInfo)
-This event fires when upload begins, sending fileInfo object as first parameter received from Client before sending it. fileInfo object contains: name(file's name) and size(file's size).
-
-### Event.stream(streamData)
-This event fires when client sending the data from server, and server receives it. streamData is object that contains:
-* Object stream: Internally, this module merge the data from client until file is all uploaded. This stream is part of file that client keep sending it.
-* String name: Name of the file.
-* Number size: Total file size.
-* Number uploaded: Amount of uploaded.
-* Number percent: Percentage of how much uploaded
-
-### Event.complete(uploadedInfo)
-This event fires when upload completed. This event has argument for uploaded file info.
-* String path: Uploaded path of file.
-* String name: Name of the file
-* String uploadTo: Argument passed by Client on starting upload as 'to' argument.
-* Object data: Custom data was sent from Client.
-
 ## Browser Supports
-This module uses FileReader API, so latest browser is required.
-
-
-Please check the Client side module too. Link: [socket.io-file-client
-](https://github.com/rico345100/socket.io-file-client)
+This module uses FileReader API with ArrayBuffer, so make sure your browser support it.
