@@ -162,6 +162,7 @@ Available optionts:
 - Number chunkSize: Size of chunk you sending to. Default is 10240 = 1KB. Higher value gives you faster upload, uses more server resources. Lower value saves your server resources, slower upload.
 - Number transmissionDelay: Delay of each chunk transmission, default is 0. 0 means no delay, unit is ms. Use this property wisely to save your server resources with chunkSize.
 - Boolean overwite: If sets true, overwrite the file if already exists. Default is false, which upload gonna complete immediately if file already exists. 
+- Function rename: Rename the file before upload starts. Return value is use for the name. This option is useful to upload file without overwriting concerns. Check the details from later example. *New from 2.0.1*
 
 ### Events
 SocketIOFile provides these events.
@@ -218,6 +219,29 @@ uploader.upload(fileEl, {
 	uploadTo: 'music'		// upload to data/music
 });
 ```
+
+
+## Rename before uploads
+From version *2.0.1*, you can now rename the file name before upload starts.
+
+```javascript
+var count = 0;
+var uploader = new SocketIOFile(socket, {
+	overwrite: false,
+	rename: function(filename) {
+		var split = filename.split('.');	// split filename by .(extension)
+		var fname = split[0];	// filename without extension
+		var ext = split[1];
+
+		return `${fname}_${count++}.${ext}`;
+	}
+});
+```
+
+Above example changes the filename before upload starts, adding counting value before file extension. 
+This makes file always written, because filename never can't same(but only before you restart the server).
+If you want to generate some kind of **unique identifier** to the file always, consider to using Date string or other uid generating node modules like node-uuid.
+You can easily combine them together, just put in them into rename option.
 
 
 ## Browser Supports

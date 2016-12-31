@@ -1,6 +1,6 @@
 {
   "name": "socket.io-file",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "description": "File uploader module for Socket.io",
   "main": "index.js",
   "scripts": {
@@ -20,5 +20,7 @@
   ],
   "author": ".modernator",
   "license": "MIT",
-  "dependencies": {}
+  "dependencies": {
+    "mime": "^1.3.4"
+  }
 }

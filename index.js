@@ -38,6 +38,7 @@ function SocketIOFile(socket, options) {
 	this.chunkSize = +options.chunkSize || 10240;
 	this.transmissionDelay = options.transmissionDelay || 0;
 	this.overwrite = !!options.overwrite || false;
+	this.rename = options.rename || null;
 
 	if(!options.uploadDir) {
 		throw new Error('No upload directory specified.');
@@ -81,16 +82,22 @@ function SocketIOFile(socket, options) {
 			});
 			self.emit('error', err);
 		}
+
+		var filename = fileInfo.name;
+
+		if(this.rename) {
+			filename = this.rename(filename);
+		}
 		
 		if(typeof options.uploadDir === 'string') {
-			uploadDir = path.join(options.uploadDir, fileInfo.name);
+			uploadDir = path.join(options.uploadDir, filename);
 		}
 		else if(typeof options.uploadDir === 'object') {
 			if(!uploadTo) {
 				return sendError(new Error('Upload directory must be specified in multiple directories.'));
 			}
 			else if(options.uploadDir[uploadTo]) {
-                uploadDir = path.join(options.uploadDir[uploadTo], fileInfo.name);
+                uploadDir = path.join(options.uploadDir[uploadTo], filename);
             }
             else {
 				return sendError(new Error('Upload directory ' + uploadTo + ' is not exists.'));
@@ -104,7 +111,7 @@ function SocketIOFile(socket, options) {
 		var startTime = new Date();
 
 		this.emit('start', { 
-			name: fileInfo.name, 
+			name: filename, 
 			size: fileInfo.size,
 			uploadDir: uploadDir
 		});
@@ -116,7 +123,7 @@ function SocketIOFile(socket, options) {
 			
 			let mimeType = mime.lookup(uploadDir);
 			let emitObj = {
-				name: uploadingFiles[id].name, 
+				name: filename, 
 				size: uploadingFiles[id].size, 
 				wrote: uploadingFiles[id].wrote,
 				uploadDir: uploadingFiles[id].uploadDir,
@@ -140,7 +147,7 @@ function SocketIOFile(socket, options) {
 				if(!found) {
 					fs.unlink(uploadDir);	// no after works.
 
-					let err = new Error('Not Acceptable file type ' + mimeType + ' of ' + fileInfo.name + '. Type must be one of these: ' + this.accepts.join(', '));
+					let err = new Error('Not Acceptable file type ' + mimeType + ' of ' + filename + '. Type must be one of these: ' + this.accepts.join(', '));
 					this.emit('error', err);
 					return sendError(err);
 				}
