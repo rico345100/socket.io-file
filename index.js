@@ -66,6 +66,8 @@ function SocketIOFile(socket, options) {
 			chunkSize: this.chunkSize,
 			transmissionDelay: this.transmissionDelay
 		});
+
+		this.emit('ready');
 	});
 	
 	var self = this;
