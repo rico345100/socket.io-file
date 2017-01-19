@@ -88,7 +88,12 @@ function SocketIOFile(socket, options) {
 		var filename = fileInfo.name;
 
 		if(this.rename) {
-			filename = this.rename(filename);
+			if(typeof this.rename === 'function') {
+				filename = this.rename(filename);
+			}
+			else {
+				filename = this.rename;
+			}
 		}
 		
 		if(typeof options.uploadDir === 'string') {
@@ -173,16 +178,6 @@ function SocketIOFile(socket, options) {
 			delete uploadingFiles[id];
 		};
 
-		var writeStream = fs.createWriteStream(uploadDir);
-		
-		uploadingFiles[id] = {
-			writeStream: writeStream,
-			name: fileInfo.name,
-			size: fileInfo.size,
-			wrote: 0,
-			uploadDir: uploadDir
-		};
-
 		if(!options.overwrite) {
 			let isFileExists = false;
 
@@ -196,6 +191,16 @@ function SocketIOFile(socket, options) {
 
 			if(isFileExists) return uploadComplete();
 		}
+
+		var writeStream = fs.createWriteStream(uploadDir);
+		
+		uploadingFiles[id] = {
+			writeStream: writeStream,
+			name: fileInfo.name,
+			size: fileInfo.size,
+			wrote: 0,
+			uploadDir: uploadDir
+		};
 
 		socket.emit(`socket.io-file::request::${id}`);
 
