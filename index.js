@@ -124,12 +124,16 @@ function SocketIOFile(socket, options) {
 		});
 
 		const uploadComplete = () => {
-			uploadingFiles[id].writeStream.end();
+			const ws = uploadingFiles[id].writeStream;
 
-			let endTime = new Date();
+			if(ws) {
+				ws.end();
+			}
+
+			const endTime = new Date();
 			
-			let mimeType = mime.lookup(uploadDir);
-			let emitObj = {
+			const mimeType = mime.lookup(uploadDir);
+			const emitObj = {
 				name: filename, 
 				size: uploadingFiles[id].size, 
 				wrote: uploadingFiles[id].wrote,
@@ -159,13 +163,17 @@ function SocketIOFile(socket, options) {
 					return sendError(err);
 				}
 				else {
-					self.socket.emit(`socket.io-file::complete::${id}`, emitObj);
 					self.emit('complete', emitObj);
+
+					delete emitObj.uploadDir;
+					self.socket.emit(`socket.io-file::complete::${id}`, emitObj);
 				}
 			}
 			else {
-				self.socket.emit(`socket.io-file::complete::${id}`, emitObj);
 				self.emit('complete', emitObj);
+
+				delete emitObj.uploadDir;
+				self.socket.emit(`socket.io-file::complete::${id}`, emitObj);
 			}			
 
 			// Release event handlers
@@ -176,6 +184,14 @@ function SocketIOFile(socket, options) {
 			socket.removeAllListeners(`socket.io-file::error::${id}`);
 
 			delete uploadingFiles[id];
+		};
+
+		uploadingFiles[id] = {
+			writeStream: null,
+			name: fileInfo.name,
+			size: fileInfo.size,
+			wrote: 0,
+			uploadDir: uploadDir
 		};
 
 		if(!options.overwrite) {
@@ -194,13 +210,7 @@ function SocketIOFile(socket, options) {
 
 		var writeStream = fs.createWriteStream(uploadDir);
 		
-		uploadingFiles[id] = {
-			writeStream: writeStream,
-			name: fileInfo.name,
-			size: fileInfo.size,
-			wrote: 0,
-			uploadDir: uploadDir
-		};
+		uploadingFiles[id].writeStream = writeStream;
 
 		socket.emit(`socket.io-file::request::${id}`);
 
