@@ -118,7 +118,9 @@ form.onsubmit = function(ev) {
 	ev.preventDefault();
 	
 	var fileEl = document.getElementById('file');
-	var uploadIds = uploader.upload(fileEl);
+	var uploadIds = uploader.upload(fileEl, {
+		data: { /* Arbitrary data... */ }
+	});
 
 	// setTimeout(function() {
 		// uploader.abort(uploadIds[0]);
@@ -176,6 +178,7 @@ Fired on starting file upload. This means server grant your uploading request an
 - String name: Name of the file
 - Number size: Size of the file(bytes)
 - String uploadDir: Directory for writing.
+- Object data: An arbitrary data object that was passed to the client's upload()-function.
 
 #### stream
 Fired on getting chunks from client. Argument has:
@@ -183,6 +186,7 @@ Fired on getting chunks from client. Argument has:
 - String uploadDir
 - Number size
 - Number wrote: Bytes of wrote
+- Object data: An arbitrary data object that was passed to the client's upload()-function.
 
 #### complete
 Fired on upload complete. Argument has:
@@ -192,6 +196,7 @@ Fired on upload complete. Argument has:
 - Number size
 - Number wrote
 - Number estimated: Estimated uploading time as ms.
+- Object data: An arbitrary data object that was passed to the client's upload()-function.
 
 #### abort
 Fired on abort uploading.
@@ -199,9 +204,16 @@ Fired on abort uploading.
 - String uploadDir
 - Number size
 - Number wrote
+- Object data: An arbitrary data object that was passed to the client's upload()-function.
 
 #### error
-Fired on got an error. Passes Error object.
+Fired on got an error.
+- First argument: Error object. 
+- Second argument: Object with the following properties:
+-- String uploadId
+-- String name
+-- String uploadTo
+-- Object data: An arbitrary data object that was passed to the client's upload()-function.
 
 
 ## Multiple uploading path
