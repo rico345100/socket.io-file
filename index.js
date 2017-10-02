@@ -111,7 +111,6 @@ function SocketIOFile(socket, options) {
             }
 		}
 		else if(fileInfo.size > this.maxFileSize) {
-			this.emit('error', err);
 			return sendError(new new Error('Max Uploading File size must be under ' + this.maxFileSize + ' byte(s).'));
 		}
 
@@ -159,7 +158,6 @@ function SocketIOFile(socket, options) {
 					fs.unlink(uploadDir);	// no after works.
 
 					let err = new Error('Not Acceptable file type ' + mimeType + ' of ' + filename + '. Type must be one of these: ' + this.accepts.join(', '));
-					this.emit('error', err);
 					return sendError(err);
 				}
 				else {
