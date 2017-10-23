@@ -59,7 +59,7 @@ function SocketIOFile(socket, options) {
 
 	this.socket = socket;
 
-	socket.once('socket.io-file::reqSync', () => {
+	socket.on('socket.io-file::reqSync', () => {
 		socket.emit('socket.io-file::recvSync', {
 			maxFileSize: this.maxFileSize,
 			accepts: this.accepts,
@@ -118,7 +118,7 @@ function SocketIOFile(socket, options) {
             }
 		}
 		else if(fileInfo.size > this.maxFileSize) {
-			return sendError(new new Error('Max Uploading File size must be under ' + this.maxFileSize + ' byte(s).'));
+			return sendError(new Error('Max Uploading File size must be under ' + this.maxFileSize + ' byte(s).'));
 		}
 
 		var startTime = new Date();

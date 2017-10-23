@@ -171,7 +171,7 @@ Available optionts:
 SocketIOFile provides these events.
 
 #### ready (ADDED ON 2.0.12)
-Fired on ready, means after synchronize meta data from client.
+Fired on ready, means after synchronize meta data from client. Make sure upload after ready event triggered.
 
 #### start
 Fired on starting file upload. This means server grant your uploading request and create empty file to begin writes. Argument has:
@@ -266,6 +266,11 @@ var upload = new SocketIOFile(socket, {
 	rename: 'myNewFilename.xls'
 });
 ```
+
+
+## FAQ
+### Upload 0 bytes
+Try to upload after "ready" event fired.
 
 
 ## Browser Supports
