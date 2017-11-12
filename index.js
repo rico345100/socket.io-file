@@ -4,28 +4,8 @@ const util = require('util');
 const fs = require('fs');
 const path = require('path');
 const mime = require('mime');
-
-function mkdirSyncRecursively(dir, mode) {
-    try {
-        var result = fs.mkdirSync(dir, mode);
-    }
-    catch(e) {
-        if(e.code === 'ENOENT') {
-            mkdirSyncRecursively(path.dirname(dir), mode);  // if does not exists, create all parents recursively
-            mkdirSyncRecursively(dir, mode);   // retry
-        }
-    }
-}
-
-function createDirectoryIfNotExists(dir) {
-	try {
-		fs.accessSync(dir, fs.F_OK);
-	}
-	catch(e) {
-		// create directory if not exists
-		mkdirSyncRecursively(dir, '0755');
-	}
-}
+const mkdirSyncRecursively = require('./utils').mkdirSyncRecursively;
+const createDirectoryIfNotExists = require('./utils').createDirectoryIfNotExists;
 
 function SocketIOFile(socket, options) {
 	if(!socket) {
@@ -170,19 +150,13 @@ function SocketIOFile(socket, options) {
 					return sendError(err);
 				}
 				else {
-					self.emit('complete', emitObj);
-
-					delete emitObj.uploadDir;
-					delete emitObj.data;
 					self.socket.emit(`socket.io-file::complete::${id}`, emitObj);
+					self.emit('complete', emitObj);
 				}
 			}
 			else {
-				self.emit('complete', emitObj);
-
-				delete emitObj.uploadDir;
-				delete emitObj.data;
 				self.socket.emit(`socket.io-file::complete::${id}`, emitObj);
+				self.emit('complete', emitObj);
 			}			
 
 			// Release event handlers
@@ -296,6 +270,15 @@ function SocketIOFile(socket, options) {
 		});
 	});
 }
+
+SocketIOFile.prototype.destroy = function() {
+	this.emit('destroy');
+	this.socket.emit('socket.io-file::disconnectByServer');
+
+	// Clear the resources
+	this.removeAllListeners();
+	this.socket = null;		// Remove reference of Socket.io
+};
 util.inherits(SocketIOFile, EventEmitter);
 
 module.exports = SocketIOFile;

@@ -215,6 +215,13 @@ Fired on got an error.
 -- String uploadTo
 -- Object data: An arbitrary data object that was passed to the client's upload()-function.
 
+#### destroy (ADDED ON 2.0.2)
+Fired after destroyed Socket.io-file object
+
+
+### void SocketIOFile.prototype.destroy(void) (ADDED ON 2.0.2)
+Destroy all resources that used in Socket.io-file. It also send some order to the client so that client can clear own resources.
+
 
 ## Multiple uploading path
 Socket.io-file supports multiple path upload. You can specify multiple upload path with passing object that has key as identifier, value as actual directory.
