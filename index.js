@@ -127,7 +127,8 @@ function SocketIOFile(socket, options) {
 				uploadDir: uploadingFiles[id].uploadDir,
 				data: uploadingFiles[id].data,
 				mime: mimeType,
-				estimated: endTime - startTime
+				estimated: endTime - startTime,
+				uploadId: id
 			};
 			
 			if(this.accepts && this.accepts.length > 0) {
@@ -228,7 +229,8 @@ function SocketIOFile(socket, options) {
 					size: uploadingFiles[id].size, 
 					wrote: uploadingFiles[id].wrote,
 					uploadDir: uploadingFiles[id].uploadDir,
-					data: uploadingFiles[id].data
+					data: uploadingFiles[id].data,
+					uploadId: id
 				});
 
 				if(!writeDone) {
@@ -259,7 +261,8 @@ function SocketIOFile(socket, options) {
 				size: uploadingFiles[id].size, 
 				wrote: uploadingFiles[id].wrote,
 				uploadDir: uploadingFiles[id].uploadDir,
-				data: uploadingFiles[id].data
+				data: uploadingFiles[id].data,
+				uploadId: id
 			});
 			socket.emit(`socket.io-file::abort::${id}`, {
 				name: uploadingFiles[id].name, 
