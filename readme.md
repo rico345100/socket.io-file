@@ -197,6 +197,7 @@ Fired on upload complete. Argument has:
 - Number wrote
 - Number estimated: Estimated uploading time as ms.
 - Object data: An arbitrary data object that was passed to the client's upload()-function.
+- **New from 2.0.2** String uploadId: Upload ID passing from Client.
 
 #### abort
 Fired on abort uploading.
