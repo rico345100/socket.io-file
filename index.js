@@ -19,6 +19,7 @@ function SocketIOFile(socket, options) {
 	this.transmissionDelay = options.transmissionDelay || 0;
 	this.overwrite = !!options.overwrite || false;
 	this.rename = options.rename || null;
+	this.resume = !!options.resume || false;
 
 	if(!options.uploadDir) {
 		throw new Error('No upload directory specified.');
@@ -176,8 +177,42 @@ function SocketIOFile(socket, options) {
 			size: fileInfo.size,
 			wrote: 0,
 			uploadDir: uploadDir,
-			data: data
+			data: data,
+			resume: false,
 		};
+
+		// check if file exists
+		const isFileExists = fs.existsSync(uploadDir);
+
+		if (isFileExists) {
+
+			const uploadedFileStats = fs.statSync(uploadDir);
+
+			if (this.resume) {
+
+				if (uploadingFiles[id].size > 0) {
+
+					if (uploadingFiles[id].size > uploadedFileStats.size) {
+
+						uploadingFiles[id].wrote = uploadedFileStats.size;
+						uploadingFiles[id].resume = true;
+						socket.emit(`socket.io-file::resume::${id}`, uploadingFiles[id]);
+
+					} else {
+
+						if (!this.overwrite) return uploadComplete();
+
+					}
+
+				}
+
+			} else {
+
+				if (!this.overwrite) return uploadComplete();
+
+			}
+
+		}
 
 		if(!options.overwrite) {
 			let isFileExists = false;
