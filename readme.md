@@ -254,7 +254,7 @@ var count = 0;
 
 var uploader = new SocketIOFile(socket, {
 	overwrite: false,
-	rename: function(filename) {
+	rename: function(filename, fileInfo) {
 		var file = path.parse(filename);
         var fname = file.name;
         var ext = file.ext;
