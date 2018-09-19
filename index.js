@@ -77,7 +77,7 @@ function SocketIOFile(socket, options) {
 
 		if(this.rename) {
 			if(typeof this.rename === 'function') {
-				filename = this.rename(filename);
+				filename = this.rename(filename, fileInfo);
 			}
 			else {
 				filename = this.rename;
