@@ -74,7 +74,6 @@ function SocketIOFile(socket, options) {
 			});
 		}
 
-
 		if(this.rename) {
 			if(typeof this.rename === 'function') {
 				filename = this.rename(filename, fileInfo);
@@ -185,33 +184,21 @@ function SocketIOFile(socket, options) {
 		const isFileExists = fs.existsSync(uploadDir);
 
 		if (isFileExists) {
-
 			const uploadedFileStats = fs.statSync(uploadDir);
 
 			if (this.resume) {
-
 				if (uploadingFiles[id].size > 0) {
-
 					if (uploadingFiles[id].size > uploadedFileStats.size) {
-
 						uploadingFiles[id].wrote = uploadedFileStats.size;
 						uploadingFiles[id].resume = true;
 						socket.emit(`socket.io-file::resume::${id}`, uploadingFiles[id]);
-
 					} else {
-
 						if (!this.overwrite) return uploadComplete();
-
 					}
-
 				}
-
 			} else {
-
 				if (!this.overwrite) return uploadComplete();
-
 			}
-
 		}
 
 		if(!options.overwrite) {
@@ -299,6 +286,7 @@ function SocketIOFile(socket, options) {
 				data: uploadingFiles[id].data,
 				uploadId: id
 			});
+			
 			socket.emit(`socket.io-file::abort::${id}`, {
 				name: uploadingFiles[id].name, 
 				size: uploadingFiles[id].size, 
