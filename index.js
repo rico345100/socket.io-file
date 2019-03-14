@@ -113,8 +113,8 @@ function SocketIOFile(socket, options) {
 
 	    if(this.rename) {
 	      // rename setting
-	      // add oname to emitObj
-	      emitObj.oname = originalFileName;
+	      // add origininalFileName to emitObj
+	      emitObj.originalFileName = originalFileName;
 	    }
 
 		this.emit('start', emitObj);
@@ -143,8 +143,8 @@ function SocketIOFile(socket, options) {
 
 			if(this.rename) {
 		    	// rename setting
-		        // add oname to emitObj
-		        emitObj.oname = originalFileName;
+		        // add originalFileName to emitObj
+		        emitObj.originalFileName = originalFileName;
 		    }
 
 			if(this.accepts && this.accepts.length > 0) {
