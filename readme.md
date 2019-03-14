@@ -179,6 +179,7 @@ Fired on starting file upload. This means server grant your uploading request an
 - Number size: Size of the file(bytes)
 - String uploadDir: Directory for writing.
 - Object data: An arbitrary data object that was passed to the client's upload()-function.
+- **New from 2.0.31** String originalFileName: When renamed file name, original name also delivers here.
 
 #### stream
 Fired on getting chunks from client. Argument has:
@@ -198,6 +199,7 @@ Fired on upload complete. Argument has:
 - Number estimated: Estimated uploading time as ms.
 - Object data: An arbitrary data object that was passed to the client's upload()-function.
 - **New from 2.0.2** String uploadId: Upload ID passing from Client.
+- **New from 2.0.31** String originalFileName: When renamed file name, original name also delivers here.
 
 #### abort
 Fired on abort uploading.
@@ -269,12 +271,13 @@ You can easily combine them together, just put in them into rename option.
 
 From version 2.0.13, you can now just pass string directory, without function.
 
+From version 2.0.31, when use rename property(or function), original file name will includes in argument of complete/start event.
+
 ```javascript
 var upload = new SocketIOFile(socket, {
 	rename: 'myNewFilename.xls'
 });
 ```
-
 
 ## FAQ
 ### Upload 0 bytes
