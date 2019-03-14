@@ -60,7 +60,7 @@ function SocketIOFile(socket, options) {
 		var uploadTo = fileInfo.uploadTo || '';
 		var data = fileInfo.data || {};
 		var filename = fileInfo.name;
-		var oFileName = fileInfo.name;
+		var originalFileName = fileInfo.name;
 
 
 		function sendError(err) {
@@ -114,7 +114,7 @@ function SocketIOFile(socket, options) {
 	    if(this.rename) {
 	      // rename setting
 	      // add oname to emitObj
-	      emitObj.oname = oFileName;
+	      emitObj.oname = originalFileName;
 	    }
 
 		this.emit('start', emitObj);
@@ -144,7 +144,7 @@ function SocketIOFile(socket, options) {
 			if(this.rename) {
 		    	// rename setting
 		        // add oname to emitObj
-		        emitObj.oname = oFileName;
+		        emitObj.oname = originalFileName;
 		    }
 
 			if(this.accepts && this.accepts.length > 0) {
