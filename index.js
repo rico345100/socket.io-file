@@ -60,6 +60,7 @@ function SocketIOFile(socket, options) {
 		var uploadTo = fileInfo.uploadTo || '';
 		var data = fileInfo.data || {};
 		var filename = fileInfo.name;
+		var oFileName = fileInfo.name;
 
 
 		function sendError(err) {
@@ -103,12 +104,21 @@ function SocketIOFile(socket, options) {
 
 		var startTime = new Date();
 
-		this.emit('start', { 
-			name: filename, 
+		const emitObj = {
+			name: filename,
 			size: fileInfo.size,
 			uploadDir: uploadDir,
 			data: data
-		});
+		};
+
+	    if(this.rename) {
+	      // rename setting
+	      // add oname to emitObj
+	      emitObj.oname = oFileName;
+	    }
+
+		this.emit('start', emitObj);
+
 
 		const uploadComplete = () => {
 			const ws = uploadingFiles[id].writeStream;
@@ -130,7 +140,13 @@ function SocketIOFile(socket, options) {
 				estimated: endTime - startTime,
 				uploadId: id
 			};
-			
+
+			if(this.rename) {
+		    	// rename setting
+		        // add oname to emitObj
+		        emitObj.oname = oFileName;
+		    }
+
 			if(this.accepts && this.accepts.length > 0) {
 				let found = false;
 
