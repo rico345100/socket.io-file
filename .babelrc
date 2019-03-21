@@ -1,3 +1,25 @@
 {
-    "presets": ["@babel/preset-flow"]
+    "presets": [
+        "@babel/preset-flow",
+        ["@babel/preset-env", {
+            "modules": false,
+            "targets": {
+                "node": 4
+            }
+        }]
+    ],
+    "env": {
+        "test": {
+            "presets": [
+                ["@babel/preset-env"]
+            ]
+        }
+    },
+    // Currently ignore options not working.
+    "ignore": [
+        "src/**/*.test.js",
+        "**/*.test.js",
+        "**.test.js",
+        "src/module.test.js"
+    ]
 }

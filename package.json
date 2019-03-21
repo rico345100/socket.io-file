@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "start": "npm run build-prod;npm run serve",
-    "build": "babel ./src -d ./build --copy-files",
+    "build": "babel ./src -d ./build --copy-files --ignore src/**/*.test.js",
     "build-dev": "NODE_ENV=development npm run build",
     "build-prod": "NODE_ENV=production npm run build",
     "serve": "node ./build/index.js",
@@ -34,8 +34,10 @@
   "devDependencies": {
     "@babel/cli": "^7.2.3",
     "@babel/core": "^7.3.4",
+    "@babel/preset-env": "^7.4.2",
     "@babel/preset-flow": "^7.0.0",
     "flow-bin": "^0.95.1",
+    "jest": "^24.5.0",
     "nodemon": "^1.18.10"
   }
 }
