@@ -14,12 +14,5 @@
                 ["@babel/preset-env"]
             ]
         }
-    },
-    // Currently ignore options not working.
-    "ignore": [
-        "src/**/*.test.js",
-        "**/*.test.js",
-        "**.test.js",
-        "src/module.test.js"
-    ]
+    }
 }

@@ -5,13 +5,13 @@
   "main": "index.js",
   "scripts": {
     "start": "npm run build-prod;npm run serve",
-    "build": "babel ./src -d ./build --copy-files --ignore src/**/*.test.js",
+    "build": "babel ./src -d ./build --ignore **/*.test.js",
     "build-dev": "NODE_ENV=development npm run build",
     "build-prod": "NODE_ENV=production npm run build",
     "serve": "node ./build/index.js",
     "flow": "flow",
     "dev": "npm run flow;npm run build;nodemon --watch src/ --exec \"npm run start\"",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "jest"
   },
   "repository": {
     "type": "git",
