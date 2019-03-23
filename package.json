@@ -2,10 +2,10 @@
   "name": "socket.io-file",
   "version": "3.0.0",
   "description": "File uploader module for Socket.io",
-  "main": "index.js",
+  "main": "build/index.js",
   "scripts": {
     "start": "npm run build-prod;npm run serve",
-    "build": "babel ./src -d ./build --ignore **/*.test.js",
+    "build": "babel ./src -d ./build",
     "build-dev": "NODE_ENV=development npm run build",
     "build-prod": "NODE_ENV=production npm run build",
     "serve": "node ./build/index.js",
