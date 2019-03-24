@@ -1,6 +1,4 @@
 /* @flow */
-export type IO = any;
-
 export interface FileInfo {
 	originalFileName: string;
 	fileName: string;
