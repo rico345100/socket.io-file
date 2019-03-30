@@ -1,5 +1,6 @@
 /* @flow */
 import events from 'events';
+import fs from 'fs';
 import type { UploadSettings } from './types';
 
 class SocketIOFile extends events.EventEmitter {
@@ -15,6 +16,8 @@ class SocketIOFile extends events.EventEmitter {
 		}
 		else if(!uploadSettings) {
 			throw new Error('Upload Settings required');
+		} else if(!uploadSettings.directory) {
+			throw new Error('Upload Directory required.');
 		}
 
 		super();
@@ -25,6 +28,7 @@ class SocketIOFile extends events.EventEmitter {
 		this.evPrefix = 'socket.io-file';
 
 		// Set default settings
+		this.uploadSettings.directory = uploadSettings.directory;
 		this.uploadSettings.maxFileSize = +uploadSettings.maxFileSize || undefined;
 		this.uploadSettings.accepts = uploadSettings.accepts || [];
 		this.uploadSettings.chunkSize = +uploadSettings.chunkSize || 10240;
@@ -48,6 +52,7 @@ class SocketIOFile extends events.EventEmitter {
 	 * Sync Upload Settings to Client
 	 */
 	syncUploadSettings() {
+		console.log('Sync Upload Settings');
 		const { accepts, maxFileSize, chunkSize, transmissionDelay } = this.uploadSettings;
 		
 		this.socket.emit(`${this.evPrefix}::sync_upload_settings`, {
@@ -70,6 +75,7 @@ class SocketIOFile extends events.EventEmitter {
 	 * Send Upload ID to client
 	 */
 	sendUploadId() {
+		console.log('Sync Upload Settings');
 		const id = this.assignUploadId();
 		this.socket.emit(`${this.evPrefix}::request_upload_id`, id);
 		// After request uploadId, client will send request to create file before upload.
@@ -86,22 +92,24 @@ class SocketIOFile extends events.EventEmitter {
 	 * @param {number} param.size
 	 */
 	createFile({ uploadId, name, size }: { uploadId: number, name: string, size: number }) {
-		// TODO: Check file size and reject if exceedes maxFileSize option
 		const { maxFileSize } = this.uploadSettings;
 		if(typeof maxFileSize !== 'undefined' && size > maxFileSize) {
-			// TODO: Throw error to client
+			this.socket.emit(`${this.evPrefix}::error`, 'Exceeded max file size.');
+			return;
 		}
 
 		// TODO: Create Empty File
 		// Maybe you should create writableStream and pipe into file,
 		// and write ArrayBuffer received from socket
+		const { directory } = this.uploadSettings;
+		const writeStream = fs.createWriteStream(directory);
 		
 		this.socket.emit(`${this.evPrefix}::${uploadId}::request_create_file`);
 		this.socket.once(`${this.evPrefix}::${uploadId}::stream`, (buffer) => {
-			this.writeStream(uploadId, buffer);
+			this.writeStream(writeStream, uploadId, buffer);
 		});
 		this.socket.once(`${this.evPrefix}::${uploadId}::complete`, () => {
-			this.closeStream(uploadId);
+			this.closeStream(writeStream, uploadId);
 		});
 
 		this.emit('start', {
@@ -113,16 +121,17 @@ class SocketIOFile extends events.EventEmitter {
 
 	/**
 	 * Write Stream and request client to continue
+	 * @param {fs.WriteStream} stream
 	 * @param {number} uploadId 
 	 * @param {ArrayBuffer} buffer 
 	 */
-	writeStream(uploadId: number, buffer: ArrayBuffer) {
-		// TODO: Write binary to writable stream
+	writeStream(stream: fs.WriteStream, uploadId: number, buffer: ArrayBuffer) {
+		stream.write(Buffer.from(buffer));
 
 		// Send client to continue
 		this.socket.emit(`${this.evPrefix}::${uploadId}::stream`);
 		this.socket.once(`${this.evPrefix}::${uploadId}::stream`, (buffer) => {
-			this.writeStream(uploadId, buffer);
+			this.writeStream(stream, uploadId, buffer);
 		});
 
 		this.emit('stream', {
@@ -133,10 +142,11 @@ class SocketIOFile extends events.EventEmitter {
 
 	/**
 	 * Close Writable Stream to save file
+	 * @param {fs.WriteStream} stream
 	 * @param {number} uploadId 
 	 */
-	closeStream(uploadId: number) {
-		// TODO: Close Writable Stream
+	closeStream(stream: fs.WriteStream, uploadId: number) {
+		stream.close();
 
 		this.emit('complete', () => {
 			uploadId
@@ -144,6 +154,9 @@ class SocketIOFile extends events.EventEmitter {
 	}
 
 	// TODO: Add Abort
+	abortStream(stream: fs.WriteStream, uploadId: number) {
+
+	}
 }
 
 module.exports = SocketIOFile;

@@ -12,12 +12,8 @@ export interface UploadInfo {
 	fileInfo: FileInfo;
 };
 
-export type DirectoryStore = {
-	[directoryName: string]: string;
-}
-
 export interface UploadSettings {
-	directory: string | DirectoryStore;
+	directory: string;
 	accepts?: string[];
 	maxFileSize?: number;
 	chunkSize?: number;
