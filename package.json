@@ -5,12 +5,11 @@
   "main": "build/index.js",
   "scripts": {
     "start": "npm run build-prod;npm run serve",
-    "build": "babel ./src -d ./build",
-    "build-dev": "NODE_ENV=development npm run build",
-    "build-prod": "NODE_ENV=production npm run build",
+    "build-dev": "NODE_ENV=development babel ./src -d ./build --source-maps",
+    "build-prod": "NODE_ENV=production babel ./src -d ./build --presets minify",
     "serve": "node ./build/index.js",
     "flow": "flow",
-    "dev": "npm run flow;npm run build;nodemon --watch src/ --exec \"npm run start\"",
+    "dev": "npm run flow;npm run build-dev;nodemon --watch src/ --exec \"npm run start\"",
     "test": "jest"
   },
   "repository": {
@@ -36,6 +35,7 @@
     "@babel/core": "^7.3.4",
     "@babel/preset-env": "^7.4.2",
     "@babel/preset-flow": "^7.0.0",
+    "babel-preset-minify": "^0.5.0",
     "flow-bin": "^0.95.1",
     "jest": "^24.5.0",
     "nodemon": "^1.18.10"
