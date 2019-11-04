@@ -161,7 +161,7 @@ function SocketIOFile(socket, options) {
 
 				// if mime is invalid, remove files and emit error
 				if(!found) {
-					fs.unlink(uploadDir);	// no after works.
+					fs.unlink(uploadDir, (err) => { console.log(err) });	// Node 10 onwards requires callback to be specified
 
 					let err = new Error('Not Acceptable file type ' + mimeType + ' of ' + filename + '. Type must be one of these: ' + this.accepts.join(', '));
 					return sendError(err);
